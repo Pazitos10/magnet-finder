@@ -6,7 +6,7 @@ Avoid the hassle and find the best magnet link for your torrents on your termina
 
 1. Clone this repo (or Download it as ZIP): `git clone https://github.com/Pazitos10/tpbmf.git`
 2. Install the dependencies:  `pip install -r requirements.txt`
-3. Search for torrents: `python tpbmf -t "something"`
+3. Search for torrents: `python tpbmf -t "an awesome torrent name"`
 4. Copy the magnet link to your clipboard and paste it on your torrent client open URL menu to start downloading.
 
 ##### More:
@@ -31,4 +31,4 @@ Avoid the hassle and find the best magnet link for your torrents on your termina
 * [ ] Allow the user to select which one to download.
 * [ ] Solve captchas.
 
-##### Notes: This is a work in progress, you should not use this.
+##### Notes: This is a work in progress, you should not use it.
