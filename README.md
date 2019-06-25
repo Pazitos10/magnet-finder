@@ -29,6 +29,7 @@ Avoid the hassle and find the best magnet link for your torrents on your termina
 * [ ] Verify HTTP errors.
 * [x] Work with multiple mirrors. 
 * [ ] Allow the user to select which one to download.
+* [ ] Support for pagination.
 * [ ] Solve captchas.
 
 ##### Notes: This is a work in progress, you should not use it.
