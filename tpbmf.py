@@ -46,7 +46,7 @@ def get_magnet_from_details_page(url, detail_url):
     magnet = parsed_html.find_all('a', {'title': 'Get this torrent'})
     return magnet[0].get('href')
 
-def get_torrent_matches(parsed_html):
+def get_torrent_matches(results):
     """Returns the data of the searched torrent if there are matches"""
     parsed_html = BeautifulSoup(results.text, 'html.parser')
     torrent_matches = parsed_html.find_all('div', {'class': 'detName'})
