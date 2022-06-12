@@ -80,6 +80,8 @@ def torrent_matches(results):
     if results.status_code == 200:
         data = results.json()
         for d in data:
+            if 'no results' in d['name'].lower():
+                break
             match = {
                 'seeders': d['seeders'],
                 'leechers': d['leechers'],
