@@ -1,113 +1,135 @@
 import argparse
-import requests
-from bs4 import BeautifulSoup
+from requests import get
+from requests.utils import quote
 
-AGENT = 'Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0'
+AGENT = 'Mozilla/5.0 (X11; Linux x86_64; rv:99.0) Gecko/20100101 Firefox/99.0'
 
-def format_search_term(term):
-    return term.replace(" ", "+")
-
-def show_results(torrent_name, torrent_list):
+def show_results(search_terms, torrent_list):
     """Show results as a text formated table"""
-    print("N°\t|SE\t|LE\t|Name")
-    print("-"*32)
+    print(f'Results for: "{search_terms}" - ({len(torrent_list)} results)')
+    print("N°\t| SE\t| LE\t| Size\t| Category\t| Name")
+    print("-"*100)
     for i, t in enumerate(torrent_list, 1):
         s = t["seeders"]
         l = t["leechers"]
         n = t["name"]
-        print(f"{i}\t|{s}\t|{l}\t|{n}")
-    print("-"*32)
+        z = t["size"]
+        c = t["category"]
+        print(f"{i}\t| {s}\t| {l}\t| {z}\t| {c}\t| {n}")
+    print("-"*100)
 
-def save_to_file(torrent_list, path, selection):
+def save_to_file(magnet, filename):
     """Saves the selected magnet link to a file"""
-    name = torrent_list[selection]["name"]
-    magnet = torrent_list[selection]["magnet"]
-    magnet_file = f"{path}/magnet_{name}.txt"
-    f = open(magnet_file, 'w')
-    f.write(magnet)
-    f.close()
-    print(f"\"{name}\" magnet saved in: {magnet_file}! :D")
-    print("The magnet file content is a kind of link, copy and paste it in your torrent client to start downloading.")
+    with open(filename, 'w') as f:
+        f.write(magnet)
+        print(f"\"{name}\" magnet saved in: {filename}! :D")
+        print("Open it (or copy and paste its content) in your torrent client to start the download process.")
 
-def remove_newline(a_list):
-    return list(filter(lambda c: c != '\n', a_list))
+def append_trackers():
+    """Returns the base tracker list"""
+    trackers = [
+        'udp://tracker.coppersurfer.tk:6969/announce',
+        'udp://tracker.openbittorrent.com:6969/announce',
+        'udp://9.rarbg.to:2710/announce',
+        'udp://9.rarbg.me:2780/announce',
+        'udp://9.rarbg.to:2730/announce',
+        'udp://tracker.opentrackr.org:1337',
+        'http://p4p.arenabg.com:1337/announce',
+        'udp://tracker.torrent.eu.org:451/announce',
+        'udp://tracker.tiny-vps.com:6969/announce',
+        'udp://open.stealth.si:80/announce',
+    ]
+    trackers = [quote(tr) for tr in trackers]
+    return '&tr='.join(trackers)
 
-def has_captcha(url):
-    """Returns True if the page has a captcha or False otherwise."""
-    results = requests.get(url, headers={'agent': AGENT})
-    parsed_html = BeautifulSoup(results.text, 'html.parser')
-    captcha = parsed_html.find_all('div', {'class': 'g-recaptcha'})
-    return captcha
+def category_name(category):
+    names = [
+        '',
+        'audio',
+        'video',
+        'apps',
+        'games',
+        'nsfw',
+        'other'
+    ]
+    category = int(category[0])
+    category = category if category < len(names) - 1 else -1
+    return names[category]
 
-def get_magnet_from_details_page(url, detail_url):
-    """Returns the magnet link from the details page"""    
-    results = requests.get(url+detail_url, headers={'agent': AGENT})
-    parsed_html = BeautifulSoup(results.text, 'html.parser')
-    magnet = parsed_html.find_all('a', {'title': 'Get this torrent'})
-    return magnet[0].get('href')
+def round_size(size):
+    return round(size, 2)
 
-def get_torrent_matches(results):
+def size_as_str(size):
+    size = int(size)
+    size_str = f"{size} b"
+    if size >= 1024:
+        size_str = f"{round_size(size / 1024):.2f} kb"
+    if size >= 1024 ** 2:
+        size_str = f"{round_size(size / 1024 ** 2):.2f} mb"
+    if size >= 1024 ** 3:
+        size_str = f"{round_size(size / 1024 ** 3):.2f} gb"
+    return size_str
+
+def magnet_link(ih, name):
+    """Creates the magnet URI"""
+    return f'magnet:?xt=urn:btih:{ih}&dn={quote(name)}&tr={append_trackers()}'
+
+def torrent_matches(results):
     """Returns the data of the searched torrent if there are matches"""
-    parsed_html = BeautifulSoup(results.text, 'html.parser')
-    torrent_matches = parsed_html.find_all('div', {'class': 'detName'})
-    best_magnet_copied = False
-    torrent_list = []
-    for tm in torrent_matches:
-        ch = remove_newline(tm.parent.children)
-        sl_count = remove_newline(tm.parent.next_siblings)
-        seeders, leechers = list(map(lambda i: i.contents[0], sl_count))    
-        name = ch[0].a.contents[0]
-        magnet = ch[1].get('href')
-        if not magnet.startswith('magnet:?xt='): 
-            if not best_magnet_copied:
-                magnet = get_magnet_from_details_page(mirror, magnet)
-                best_magnet_copied = True #to avoid navigating when already has the best one copied
-        data = {
-            'seeders': seeders,
-            'leechers': leechers,
-            'name': name,
-            'magnet': magnet 
-        }
-        torrent_list.append(data)
-    return torrent_list
+    matches = []
+    if results.status_code == 200:
+        data = results.json()
+        for d in data:
+            match = {
+                'seeders': d['seeders'],
+                'leechers': d['leechers'],
+                'name': d['name'],
+                'category': category_name(d['category']),
+                'size': size_as_str(d['size']),
+                'magnet': magnet_link(d['info_hash'], d['name']),
+            }
+            matches.append(match)
+    return matches
 
-def search(mirror, term):
+def search(term):
     """Performs the search on the main page."""
-    term = format_search_term(term)
-    url = f"{mirror}/s/?q={term}&category=0&page=0&orderby=99"
-    if has_captcha(url):
-        print("Cannot solve captcha :( Try with a different mirror URL using -m option")
-    else:
-        results = requests.get(url, headers={'agent': AGENT})
-        return get_torrent_matches(results)
+    url = f"https://apibay.org/q.php?q={quote(term)}"
+    results = get(url, headers={'agent': AGENT})
+    return torrent_matches(results)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--torrent-name", help="torrent name")
-    parser.add_argument("-p", "--path", help="destination folder for the magnet file", default=".")
-    parser.add_argument("-f", "--save-to-file", help="saves the magnet link in a file", type=bool, default=False)
-    parser.add_argument("-m", "--mirror", help="alternative mirror for tpb", default="https://thepiratebay.org")
+    parser.add_argument("-s", "--search-terms", help="use double quotes to indicate the search terms")
+    parser.add_argument("-f", "--file", help="save your magnet link to a file")
     args = parser.parse_args()
 
-    if args.torrent_name and args.path and args.mirror:
-        torrent_name = args.torrent_name
-        path = args.path
-        mirror = args.mirror
-        selection = None
-        torrent_list = search(mirror, torrent_name)
+    if args.search_terms:
+        search_terms = args.search_terms
+        selection = 0
+        torrent_list = search(search_terms)
         if not torrent_list:
-            print(f"No results found for: \"{torrent_name}\" :(")
+            print(f"No results found for: \"{search_terms}\" :(")
         else:
-            show_results(torrent_name, torrent_list)
-            first_torrent_name = torrent_list[0]["name"]
-            first_torrent_magnet = torrent_list[0]["magnet"]
-            print(f"The magnet link for \"{first_torrent_name}\" is: ")
-            print(first_torrent_magnet)
+            show_results(search_terms, torrent_list)
+            try:
+                selection = int(input("Choose one of the results to get the magnet link: "))
+            except ValueError:
+                print("No option selected, default is 1.")
+            except KeyboardInterrupt:
+                print("\nYou never saw me.")
+                exit()
+            if selection < 0 or selection > len(torrent_list):
+                print("Incorrect option selected, default is 1.")
+                selection = 0
+            elif selection > 0:
+                selection = selection - 1
+            name = torrent_list[selection]["name"]
+            magnet = torrent_list[selection]["magnet"]
+            print(f"The magnet link for \"{name}\" is: \n\n{magnet}\n")
             print("Use it on your torrent client app to start downloading.")
-            if args.save_to_file:
-                if selection is None:
-                    selection = 0
-                save_to_file(torrent_list, path, selection)
+            if args.file:
+                filename = args.file
+                save_to_file(magnet, filename)
     else:
-        print("TPBmf: Avoid the hassle and find the best magnet link for your torrents on your terminal!")
+        print("magnet-finder: Skip the ads and find the best magnet links for your torrents on your terminal!")
         parser.print_help()
