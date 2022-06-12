@@ -98,7 +98,7 @@ def search(terms):
     results = get(url, headers={'agent': agent})
     return torrent_matches(results)
 
-def select_option():
+def select_option(n_results):
     """Handles the user option selection prompt and returns the selected option (default = 1)"""
     option = 0
     try:
@@ -108,7 +108,7 @@ def select_option():
     except KeyboardInterrupt:
         print("\nYou never saw me.")
         exit()
-    if option < 0 or option > len(torrent_list):
+    if option < 0 or option > n_results:
         print("Incorrect option selected, default is 1.")
         option = 0
     elif option > 0:
@@ -116,14 +116,14 @@ def select_option():
     return option
 
 def main(search_terms, filename=None):
-    torrent_list = search(search_terms)
-    if not torrent_list:
+    results = search(search_terms)
+    if not results:
         print(f"No results found for: \"{search_terms}\" :(")
     else:
-        show_results(search_terms, torrent_list)
-        option = select_option()
-        name = torrent_list[option]["name"]
-        magnet = torrent_list[option]["magnet"]
+        show_results(search_terms, results)
+        option = select_option(len(results))
+        name = results[option]["name"]
+        magnet = results[option]["magnet"]
         print(f"The magnet link for \"{name}\" is: \n\n{magnet}\n")
         print("Use it on your torrent client app to start downloading.")
         if filename:
