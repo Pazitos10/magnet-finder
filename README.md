@@ -1,5 +1,4 @@
 # magnet-finder
-#### magnet finder
 Skip the ads and find the best magnet links for your torrents on your terminal!
 
 ##### How to use:
