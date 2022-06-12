@@ -43,6 +43,7 @@ def append_trackers():
     return '&tr='.join(trackers)
 
 def category_name(category):
+    """Translates the category code to a name"""
     names = [
         '',
         'audio',
@@ -57,6 +58,7 @@ def category_name(category):
     return names[category]
 
 def size_as_str(size):
+    """Formats the file size in bytes to kb, mb or gb accordingly"""
     size = int(size)
     size_str = f"{size} b"
     if size >= 1024:
@@ -97,6 +99,7 @@ def search(terms):
     return torrent_matches(results)
 
 def select_option():
+    """Handles the user option selection prompt and returns the selected option (default = 1)"""
     option = 0
     try:
         option = int(input("Choose one of the results to get the magnet link: "))
@@ -112,6 +115,20 @@ def select_option():
         option = option - 1
     return option
 
+def main(search_terms, filename=None):
+    torrent_list = search(search_terms)
+    if not torrent_list:
+        print(f"No results found for: \"{search_terms}\" :(")
+    else:
+        show_results(search_terms, torrent_list)
+        option = select_option()
+        name = torrent_list[option]["name"]
+        magnet = torrent_list[option]["magnet"]
+        print(f"The magnet link for \"{name}\" is: \n\n{magnet}\n")
+        print("Use it on your torrent client app to start downloading.")
+        if filename:
+            save_to_file(magnet, filename)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--search-terms", help="use double quotes to indicate the search terms")
@@ -119,19 +136,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.search_terms:
-        search_terms = args.search_terms
-        torrent_list = search(search_terms)
-        if not torrent_list:
-            print(f"No results found for: \"{search_terms}\" :(")
-        else:
-            show_results(search_terms, torrent_list)
-            option = select_option()
-            name = torrent_list[option]["name"]
-            magnet = torrent_list[option]["magnet"]
-            print(f"The magnet link for \"{name}\" is: \n\n{magnet}\n")
-            print("Use it on your torrent client app to start downloading.")
-            if args.file:
-                save_to_file(magnet, args.file)
+        main(args.search_terms, args.file)
     else:
         print("magnet-finder: Skip the ads and find the best magnet links for your torrents on your terminal!")
         parser.print_help()
